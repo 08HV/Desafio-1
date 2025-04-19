@@ -46,6 +46,7 @@ int main()
 {
     // Definición de rutas de archivo de entrada (imagen original) y salida (imagen modificada)
     QString archivoEntrada = "I_O.bmp";
+    Qstring archivoMascara = "mascara.bmp";  //entrada Mascara
     QString archivoSalida = "I_D.bmp";
 
     // Variables para almacenar las dimensiones de la imagen
@@ -303,10 +304,28 @@ unsigned char* Opera_despla(unsigned char* pixelData, int size, int n){
     return result;
 }
 
+void Enmascaramiento(unsigned char* loadPixels, unsigned char* mascaraPixels,
+    int imageWidth, int imageHeight,int maskWidth, int maskHeight,int seed, int etapa) {
+    int imageSize = imageWidth * imageHeight * 3;
+    int maskSize = maskWidth * maskHeight * 3;
+    qsrand(seed);
+    int s = qrand() % (imageSize - maskSize);  //rango
+    unsigned char* mascara = new unsigned char[maskSize];
 
+    for (int k = 0; k < maskSize; ++k) {
+        mascara[k] = (loadPixels([k + s] + mascaraPixels[k]) % 256;
+    }
 
+    // Guardar archivo de rastreo
+    ofstream file("M" + to_string(etapa) + ".txt");
+    file << s << "\n";
+    for (int k = 0; k < maskSize; ++k) {
+        file << static_cast<int>(mascara[k]) << "\n";
+    }
+    file.close();
 
-
+    delete[] mascara;
+}
 
 
 
