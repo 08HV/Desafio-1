@@ -53,22 +53,56 @@ int main()
 {
     // Definición de rutas de archivo de entrada (imagen original) y salida (imagen modificada)
     QString archivoEntrada = "I_O.bmp";
-    QString archivoMascara = "mascara.bmp";  //entrada Mascara
+    QString archivoMascara = "M.bmp";  //entrada Mascara
     QString archivoSalida = "I_D.bmp";
 
     // Variables para almacenar las dimensiones de la imagen
     int height = 0;
     int width = 0;
+    // Variables para almacenar las dimensiones de la mascara
+    int maskHeight =0;
+    int maskWidth = 0;
 
     // Carga la imagen BMP en memoria dinámica y obtiene ancho y alto
-    unsigned char *pixelData = loadPixels(archivoEntrada, width, height);
+    unsigned char *originalPixels = loadPixels(archivoEntrada, width, height);
 
-    // Simula una modificación de la imagen asignando valores RGB incrementales
-    // (Esto es solo un ejemplo de manipulación artificial)
-    for (int i = 0; i < width * height * 3; i += 3) {
-        pixelData[i] = i;     // Canal rojo
-        pixelData[i + 1] = i; // Canal verde
-        pixelData[i + 2] = i; // Canal azul
+    // Carga la imagen BMP en memoria dinámica y obtiene ancho y alto
+    unsigned char *mascaraPixels = loadPixels(archivoMascara, maskWidth, maskheight);
+
+    int size = width * height*3;
+    int numTransformaciones = 5;
+    unsigned char *pixelData = originalPixels;
+
+    for (int i = 0; i < numTransformaciones; i ++) {
+        int transform = rand() % 3 // elegir aleatroriamenteun numero del 0-2
+         if (transform = 0){
+            // OPERACION XOR
+            unsigned char* randomImage = generateI_m(width, height,1234+i);
+            unsigned char* result= Opera_xor(pixelData,randomImage,size);
+            if(pixelData != originalPixels){
+                delete[] pixelData;
+            }
+            pixelData=result;
+            delete[] randomImage;
+        } else if (transform==1){
+            // OPERACION ROTACION
+            int n = 2 + (rand() % 5);
+            unsigned char* result = Opera_rota(pixelData,size,n);
+            if (pixelData != originalPixels){
+                delete[] pixelData;
+            }
+            pixelData = result;
+        }else if (transform=2){
+            //OPERACION DESPLAZAMIENTO
+            int n = 1 + (rand() % 4);
+            unsigned char* result = Opera_despla(pixelData,size,n);
+            if (pixelData != originalPixels){
+                delete[] pixelData;
+            }
+            pixelData = result;
+        }
+    //PROCEDIMIENTO DE ENMASCARAMIENTO
+        Enmascaramiento(pixelData, mascaraPixels, width, height, maskWidth, maskHeight, 5000+i, i);
     }
 
     // Exporta la imagen modificada a un nuevo archivo BMP
