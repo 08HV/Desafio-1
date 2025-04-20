@@ -75,27 +75,27 @@ int main()
 
     for (int i = 0; i < numTransformaciones; i ++) {
         int transform = rand() % 3 // elegir aleatroriamenteun numero del 0-2
-         if (transform = 0){
+        if (transform ==0){
             // OPERACION XOR
-            unsigned char* randomImage = generateI_m(width, height,1234+i);
-            unsigned char* result= Opera_xor(pixelData,randomImage,size);
+            unsigned char* randomImage = generateI_m(width, height, 1234+i);
+            unsigned char* result= Opera_xor(pixelData, randomImage, size);
             if(pixelData != originalPixels){
                 delete[] pixelData;
             }
             pixelData=result;
             delete[] randomImage;
-        } else if (transform==1){
+        }else if (transform ==1){
             // OPERACION ROTACION
             int n = 2 + (rand() % 5);
-            unsigned char* result = Opera_rota(pixelData,size,n);
+            unsigned char* result = Opera_rota(pixelData, size, n);
             if (pixelData != originalPixels){
                 delete[] pixelData;
             }
             pixelData = result;
-        }else if (transform=2){
+        }else if (transform ==2){
             //OPERACION DESPLAZAMIENTO
             int n = 1 + (rand() % 4);
-            unsigned char* result = Opera_despla(pixelData,size,n);
+            unsigned char* result = Opera_despla(pixelData, size, n);
             if (pixelData != originalPixels){
                 delete[] pixelData;
             }
@@ -114,6 +114,10 @@ int main()
     // Libera la memoria usada para los píxeles
     delete[] pixelData;
     pixelData = nullptr;
+    delete[] originalPixels;
+    originalPixels = nullptr;
+    delete[] mascaraPixels;
+    mascaraPixels = nullptr;
 
     // Variables para almacenar la semilla y el número de píxeles leídos del archivo de enmascaramiento
     int seed = 0;
