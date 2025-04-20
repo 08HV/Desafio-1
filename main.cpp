@@ -35,18 +35,25 @@
 #include <iostream>
 #include <QCoreApplication>
 #include <QImage>
+#include <cstdlib>
 
 
 using namespace std;
 unsigned char* loadPixels(QString input, int &width, int &height);
 bool exportImage(unsigned char* pixelData, int width,int height, QString archivoSalida);
 unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixels);
+unsigned char* generateI_m(int width, int height, int seed);
+unsigned char* Opera_xor(unsigned char* pixelData, unsigned char* generateI_m, int size);
+unsigned char* Opera_rota(unsigned char* pixelData, int size, int n);
+unsigned char* Opera_despla(unsigned char* pixelData, int size, int n);
+void Enmascaramiento(unsigned char* loadPixels, unsigned char* mascaraPixels,
+int Width, int Height,int maskWidth, int maskHeight,int seed, int etapa);
 
 int main()
 {
     // Definición de rutas de archivo de entrada (imagen original) y salida (imagen modificada)
     QString archivoEntrada = "I_O.bmp";
-    Qstring archivoMascara = "mascara.bmp";  //entrada Mascara
+    QString archivoMascara = "mascara.bmp";  //entrada Mascara
     QString archivoSalida = "I_D.bmp";
 
     // Variables para almacenar las dimensiones de la imagen
@@ -271,11 +278,11 @@ unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixel
 }
 
 unsigned char* generateI_m(int width, int height, int seed) {
-    qsrand(seed);
+    srand(seed);
     int size = width * height * 3;
     unsigned char* randomPixels = new unsigned char[size];
     for (int i = 0; i < size; ++i) {
-        randomPixels[i] = qrand() % 256;
+        randomPixels[i] = rand() % 256;
     }
     return randomPixels;
 }
@@ -288,7 +295,7 @@ unsigned char* Opera_xor(unsigned char* pixelData, unsigned char* generateI_m, i
     return result;
 }
 
-unsigned char* Opera_rota(unsigned char* pixelData, int size, int 5){
+unsigned char* Opera_rota(unsigned char* pixelData, int size, int n){
     unsigned char* result = new unsigned char[size];
     for (int i = 0; i < size; i++) {
         result[i] = (pixelData[i] >> n) | (pixelData[i] << (8 - n)); // Rotación
@@ -304,20 +311,25 @@ unsigned char* Opera_despla(unsigned char* pixelData, int size, int n){
     return result;
 }
 
-void Enmascaramiento(unsigned char* loadPixels, unsigned char* mascaraPixels,
-    int imageWidth, int imageHeight,int maskWidth, int maskHeight,int seed, int etapa) {
-    int imageSize = imageWidth * imageHeight * 3;
+void Enmascaramiento(unsigned char* pixelData, unsigned char* mascaraPixels,
+    int Width, int Height,int maskWidth, int maskHeight,int seed, int etapa) {
+    int Size = Width * Height * 3;
     int maskSize = maskWidth * maskHeight * 3;
-    qsrand(seed);
-    int s = qrand() % (imageSize - maskSize);  //rango
+    srand(seed);
+    int s = rand() % (Size - maskSize);  //rango
     unsigned char* mascara = new unsigned char[maskSize];
 
     for (int k = 0; k < maskSize; ++k) {
-        mascara[k] = (loadPixels([k + s] + mascaraPixels[k]) % 256;
-    }
+        int suma = pixelData[k+s] + mascaraPixels[k];
+        if (suma > 255){
+            suma = 255;}
+        mascara[k]=static_cast<unsigned char>(suma);
 
+    }
     // Guardar archivo de rastreo
     ofstream file("M" + to_string(etapa) + ".txt");
+
+
     file << s << "\n";
     for (int k = 0; k < maskSize; ++k) {
         file << static_cast<int>(mascara[k]) << "\n";
@@ -326,15 +338,3 @@ void Enmascaramiento(unsigned char* loadPixels, unsigned char* mascaraPixels,
 
     delete[] mascara;
 }
-
-
-
-
-
-
-
-
-
-
-
-
