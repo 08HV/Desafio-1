@@ -54,7 +54,7 @@ unsigned char* Opera_despla(unsigned char* pixelData, int size, int n, int etapa
 void Enmascaramiento(unsigned char* loadPixels, unsigned char* mascaraPixels,
 int Width, int Height,int maskWidth, int maskHeight,int seed, int etapa);
 void DesEnmascaramiento(unsigned char* pixelData, unsigned char* mascaraPixels,
-int Width, int Height, int maskWidth, int maskHeight, int seed, int etapa);
+int maskWidth, int maskHeight, int etapa);
 unsigned char* Opera_xor_inverse(unsigned char* pixelData, unsigned char* generateI_m, int size);
 unsigned char* Opera_rota_inverse(unsigned char* pixelData, int size, int n);
 unsigned char* Opera_despla_inverse(unsigned char* pixelData, int size, int n, int etapa);
@@ -66,6 +66,7 @@ int main()
     QString archivoEntrada = "I_O.bmp";
     QString archivoMascara = "M.bmp";  //entrada Mascara
     QString archivoSalida = "I_D.bmp";
+    QString archivoSalida2 = "I_Oi.bmp";// Imagen original por inversa
 
     // Variables para almacenar las dimensiones de la imagen
     int height = 0;
@@ -125,10 +126,7 @@ int main()
     // Libera la memoria usada para los píxeles
     delete[] pixelData;
     pixelData = nullptr;
-    delete[] originalPixels;
-    originalPixels = nullptr;
-    delete[] mascaraPixels;
-    mascaraPixels = nullptr;
+
 
     // Variables para almacenar la semilla y el número de píxeles leídos del archivo de enmascaramiento
     int seed = 0;
@@ -151,8 +149,119 @@ int main()
         maskingData = nullptr;
     }
 
+ // proceso para volver a la imagen original.
 
-    return 0; // Fin del programa
+    // Carga la imagen BMP en memoria dinamica y obtiene ancho y alto
+    unsigned char *pixelI_D = loadPixels(archivoSalida, maskWidth, maskHeight);
+    unsigned char *pixelData1 = pixelI_D;
+
+
+    vector<string> transformaciones;
+
+    // ciclo desde la última transformación a la primera
+    for (int etapa = 4; etapa >= 0; etapa--) {
+        cout << "Deshaciendo etapa " << etapa << "..." << endl;
+
+        // Desenmascaramiento por los archivos .txt
+        DesEnmascaramiento(pixelData, mascaraPixels, maskWidth, maskHeight, etapa);
+        cout << "- Desenmascaramiento realizado (archivo M" << etapa << ".txt)" << endl;
+
+        // aplicar transformación inversa
+        bool invertido = false;
+
+        // desplazamientos inversos
+        for (int n = 1; n <= 4 && !invertido; ++n) {
+            unsigned char* intento = Opera_despla_inverse(pixelData1, size, n, etapa);
+            int validos = 0;
+            for (int i = 0; i < size; ++i) {
+                if (intento[i] >= 32 && intento[i] <= 250) validos++;
+            }
+            if (validos > size * 0.80) {
+                cout << "- Transformación detectada: Desplazamiento inverso (n = " << n << ")" << endl;
+                transformaciones.push_back("Etapa " + to_string(etapa) + ": Desplazamiento inverso (n = " + to_string(n) + ")");
+                delete[] pixelData1;
+                pixelData1 = intento;
+                invertido = true;
+                break;
+            }
+            delete[] intento;
+        }
+
+        // rotaciones inversas
+        for (int n = 1; n <= 7 && !invertido; ++n) {
+            unsigned char* intento = Opera_rota_inverse(pixelData1, size, n);
+            int validos = 0;
+            for (int i = 0; i < size; ++i) {
+                if (intento[i] >= 32 && intento[i] <= 250) validos++;
+            }
+            if (validos > size * 0.80) {
+                cout << "- Transformación detectada: Rotación inversa (n = " << n << ")" << endl;
+                transformaciones.push_back("Etapa " + to_string(etapa) + ": Rotación inversa (n = " + to_string(n) + ")");
+                delete[] pixelData1;
+                pixelData1 = intento;
+                invertido = true;
+                break;
+            }
+            delete[] intento;
+        }
+
+        //  XOR inversa
+        if (!invertido) {
+            unsigned char* xorr= generateI_m(width, height, 1234 + etapa);
+            unsigned char* intento = Opera_xor_inverse(pixelData1, xorr, size);
+            int validos = 0;
+            for (int i = 0; i < size; ++i) {
+                if (intento[i] >= 32 && intento[i] <= 250) validos++;
+            }
+            if (validos > size * 0.80) {
+                cout << "- Transformación detectada: XOR inverso" << endl;
+                transformaciones.push_back("Etapa " + to_string(etapa) + ": XOR inverso");
+                delete[] pixelData1;
+                pixelData1 = intento;
+                invertido = true;
+            } else {
+                delete[] intento;
+            }
+            delete[] xorr;
+        }
+
+        if (!invertido) {
+            cout << "No se pudo identificar la transformación en etapa " << etapa << endl;
+            transformaciones.push_back("Etapa " + to_string(etapa) + ": No identificada");
+        }
+    }
+
+    // Exportar imagen recuperada
+    bool exportada = exportImage(pixelData1, width, height, archivoSalida2 );
+    cout << exportI << endl;
+
+    // Comparar con la original
+    int errores = 0;
+    for (int i = 0; i < size; ++i) {
+        if (pixelData1[i] != originalPixels[i]){
+            errores++;}
+    }
+    if (errores == 0) {
+        cout << "Imagen reconstruida con éxito. Es igual a la original." << endl;
+    } else {
+        cout << "Imagen reconstruida con diferencias en " << errores << " bytes." << endl;
+    }
+
+    // Mostrar transformaciones detectadas
+    cout << "\n Transformaciones identificadas (de etapa 4 a 0):" << endl;
+    for (const auto& t : transformaciones) {
+        cout << t << endl;
+    }
+
+    // Limpieza de memoria
+    delete[] pixelData;
+    pixelData = nullptr;
+    delete[] originalPixels;
+    originalPixels = nullptr;
+    delete[] mascaraPixels;
+    mascaraPixels = nullptr;
+
+    return 0;
 }
 
 
@@ -396,9 +505,8 @@ void Enmascaramiento(unsigned char* pixelData, unsigned char* mascaraPixels,
 }
 
 void DesEnmascaramiento(unsigned char* pixelData, unsigned char* mascaraPixels,
-int Width, int Height, int maskWidth, int maskHeight, int seed, int etapa){
+int maskWidth, int maskHeight, int etapa){
 
-    int Size = Width * Height * 3;
     int maskSize = maskWidth * maskHeight * 3;
 
     ifstream file("M" + to_string(etapa) + ".txt");
