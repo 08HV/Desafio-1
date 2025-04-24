@@ -57,6 +57,7 @@ void DesEnmascaramiento(unsigned char* pixelData, unsigned char* mascaraPixels,
 int Width, int Height, int maskWidth, int maskHeight, int seed, int etapa);
 unsigned char* Opera_xor_inverse(unsigned char* pixelData, unsigned char* generateI_m, int size);
 unsigned char* Opera_rota_inverse(unsigned char* pixelData, int size, int n);
+unsigned char* Opera_despla_inverse(unsigned char* pixelData, int size, int n, int etapa);
 
 
 int main()
@@ -437,6 +438,22 @@ unsigned char* Opera_rota_inverse(unsigned char* pixelData, int size, int n) {
     }
     return result;
 }
+
+unsigned char* Opera_despla_inverse(unsigned char* pixelData, int size, int n, int etapa) {
+    unsigned char* result = new unsigned char[size];
+
+    ifstream file("bits_p" + to_string(etapa) + ".txt");
+
+    for (int i = 0; i < size; i++) {
+        int Bitsper;
+        file >> Bitsper;
+        result[i] = (pixelData[i] << n) | (Bitsper & ((1 << n) - 1));
+    }
+
+    file.close();
+    return result;
+}
+
 
 
 
