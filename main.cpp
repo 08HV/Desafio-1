@@ -36,9 +36,14 @@
 #include <QCoreApplication>
 #include <QImage>
 #include <cstdlib>
+#include <vector>
+#include <string>
+
 
 
 using namespace std;
+
+
 unsigned char* loadPixels(QString input, int &width, int &height);
 bool exportImage(unsigned char* pixelData, int width,int height, QString archivoSalida);
 unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixels);
@@ -48,6 +53,7 @@ unsigned char* Opera_rota(unsigned char* pixelData, int size, int n);
 unsigned char* Opera_despla(unsigned char* pixelData, int size, int n);
 void Enmascaramiento(unsigned char* loadPixels, unsigned char* mascaraPixels,
 int Width, int Height,int maskWidth, int maskHeight,int seed, int etapa);
+
 
 int main()
 {
@@ -139,6 +145,7 @@ int main()
         delete[] maskingData;
         maskingData = nullptr;
     }
+
 
     return 0; // Fin del programa
 }
@@ -376,3 +383,23 @@ void Enmascaramiento(unsigned char* pixelData, unsigned char* mascaraPixels,
 
     delete[] mascara;
 }
+// Inversa de XOR
+unsigned char* Opera_xor_inverse(unsigned char* pixelData, unsigned char* generateI_m, int size) {
+    unsigned char* result = new unsigned char[size];
+    for (int i = 0; i < size; i++) {
+        result[i] = pixelData[i] ^ generateI_m[i];
+    }
+    return result;
+}
+// inversa de ROTA
+unsigned char* Opera_rota_inverse(unsigned char* pixelData, int size, int n) {
+    unsigned char* result = new unsigned char[size];
+    for (int i = 0; i < size; i++) {
+        result[i] = (pixelData[i] << n) | (pixelData[i] >> (8 - n)); // Rotación a la izquierda
+    }
+    return result;
+}
+
+
+
+
