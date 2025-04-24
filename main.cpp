@@ -50,9 +50,11 @@ unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixel
 unsigned char* generateI_m(int width, int height, int seed);
 unsigned char* Opera_xor(unsigned char* pixelData, unsigned char* generateI_m, int size);
 unsigned char* Opera_rota(unsigned char* pixelData, int size, int n);
-unsigned char* Opera_despla(unsigned char* pixelData, int size, int n);
+unsigned char* Opera_despla(unsigned char* pixelData, int size, int n, int etapa);
 void Enmascaramiento(unsigned char* loadPixels, unsigned char* mascaraPixels,
 int Width, int Height,int maskWidth, int maskHeight,int seed, int etapa);
+void DesEnmascaramiento(unsigned char* pixelData, unsigned char* mascaraPixels,
+int Width, int Height, int maskWidth, int maskHeight, int seed, int etapa);
 unsigned char* Opera_xor_inverse(unsigned char* pixelData, unsigned char* generateI_m, int size);
 unsigned char* Opera_rota_inverse(unsigned char* pixelData, int size, int n);
 
@@ -103,7 +105,7 @@ int main()
         } else if (transform ==2){
             //OPERACION DESPLAZAMIENTO
             int n = 1 + (rand() % 4);
-            unsigned char* result = Opera_despla(pixelData, size, n);
+            unsigned char* result = Opera_despla(pixelData, size, n, i);
             if (pixelData != originalPixels){
                 delete[] pixelData;
             }
@@ -350,11 +352,17 @@ unsigned char* Opera_rota(unsigned char* pixelData, int size, int n){
     return result;
 }
 
-unsigned char* Opera_despla(unsigned char* pixelData, int size, int n){
+unsigned char* Opera_despla(unsigned char* pixelData, int size, int n, int etapa){
     unsigned char* result = new unsigned char[size];
+
+    ofstream file("bits_p"+ to_string(etapa)+".txt");
+
     for (int i = 0; i < size; i++) {
+        unsigned char Bitsper = pixelData[i] & ((1 << n) - 1);
+        file << static_cast<int>(Bitsper)<<" ";
         result[i] = pixelData[i] >> n;
     }
+    file.close();
     return result;
 }
 
@@ -385,6 +393,34 @@ void Enmascaramiento(unsigned char* pixelData, unsigned char* mascaraPixels,
 
     delete[] mascara;
 }
+
+void DesEnmascaramiento(unsigned char* pixelData, unsigned char* mascaraPixels,
+int Width, int Height, int maskWidth, int maskHeight, int seed, int etapa){
+
+    int Size = Width * Height * 3;
+    int maskSize = maskWidth * maskHeight * 3;
+
+    ifstream file("M" + to_string(etapa) + ".txt");
+    int s;
+    file >> s;
+
+    unsigned char* mascara = new unsigned char[maskSize];
+    for (int k = 0; k < maskSize; ++k) {
+        int valor;
+        file >> valor;
+        mascara[k] = static_cast<unsigned char>(valor);
+    }
+    file.close();
+
+    for (int k = 0; k < maskSize; ++k) {
+        int resta = mascara[k] - mascaraPixels[k];
+        if (resta < 0) resta = 0;
+        pixelData[k + s] = static_cast<unsigned char>(resta);
+    }
+
+    delete[] mascara;
+}
+
 // Inversa de XOR
 unsigned char* Opera_xor_inverse(unsigned char* pixelData, unsigned char* generateI_m, int size) {
     unsigned char* result = new unsigned char[size];
