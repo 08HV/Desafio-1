@@ -53,6 +53,8 @@ unsigned char* Opera_rota(unsigned char* pixelData, int size, int n);
 unsigned char* Opera_despla(unsigned char* pixelData, int size, int n);
 void Enmascaramiento(unsigned char* loadPixels, unsigned char* mascaraPixels,
 int Width, int Height,int maskWidth, int maskHeight,int seed, int etapa);
+unsigned char* Opera_xor_inverse(unsigned char* pixelData, unsigned char* generateI_m, int size);
+unsigned char* Opera_rota_inverse(unsigned char* pixelData, int size, int n);
 
 
 int main()
