@@ -59,9 +59,9 @@ void DesEnmascaramiento(unsigned char* pixelData1, unsigned char* mascaraPixels,
 int maskWidth, int maskHeight, int etapa);
 unsigned char* Opera_xor_inverse(unsigned char* pixelData1, unsigned char* generateI_m, int size);
 unsigned char* Opera_rota_inverse(unsigned char* pixelData1, int size, int n, int etapa);
-unsigned char* Opera_despla_inverse(unsigned char* pixelData1, int size, int n, int etapa);
+unsigned char* Opera_despla_inverse(unsigned char* pixelData1, int size, int etapa);
 bool verificarEnmascaramientoEtapa(unsigned char* pixelData, unsigned char* mascaraPixels,
-int Width, int Height, int maskWidth, int maskHeight, int etapa);
+int maskWidth, int maskHeight, int etapa);
 
 
 
@@ -130,7 +130,7 @@ int main()
         Enmascaramiento(pixelData, mascaraPixels, width, height, maskWidth, maskHeight, 5000+i, i);
 
      // VERIFICACION DEL ENMASCARAMIENTO
-        bool verificado = verificarEnmascaramientoEtapa(pixelData, mascaraPixels, width, height, maskWidth, maskHeight, i);
+        bool verificado = verificarEnmascaramientoEtapa(pixelData, mascaraPixels, maskWidth, maskHeight, i);
     }
 
     // Exporta la imagen modificada a un nuevo archivo BMP
@@ -192,10 +192,10 @@ int main()
         if (testFile.is_open()) {
         // desplazamientos inversos
         for (int n = 1; n <= 4 && !invertido; ++n) {
-            unsigned char* intento = Opera_despla_inverse(pixelData1, size, n, etapa);
+            unsigned char* intento = Opera_despla_inverse(pixelData1, size, etapa);
             int validos = 0;
             for (int i = 0; i < size; ++i) {
-                if (intento[i] >= 10 && intento[i] <= 245) validos++;
+                if (intento[i] >= 10 && intento[i] <= 255) validos++;
             }
             if (validos > size * 0.80) {
                 cout << "- Desplazamiento inverso (n = " << n << ")" << endl;
@@ -222,7 +222,7 @@ int main()
                 unsigned char* intento = Opera_rota_inverse(pixelData1, size, n, etapa);
                 int validos = 0;
                 for (int i = 0; i < size; ++i) {
-                    if (intento[i] >= 10 && intento[i] <= 245) validos++;
+                    if (intento[i] >= 10 && intento[i] <= 255) validos++;
                 }
                 if (validos > size * 0.80) {
                     cout << "Rotación inversa (n = " << n << ")" << endl;
@@ -250,7 +250,7 @@ int main()
             unsigned char* intento = Opera_xor_inverse(pixelData1, xorr, size);
             int validos = 0;
             for (int i = 0; i < size; ++i) {
-                if (intento[i] >= 20 && intento[i] <= 250) validos++;
+                if (intento[i] >= 10 && intento[i] <= 255) validos++;
             }
             if (validos > size * 0.75) {
                 cout << "- XOR inverso" << endl;
@@ -298,7 +298,7 @@ int main()
 
     // Limpieza de memoria
     delete[] pixelData1;
-    pixelData = nullptr;
+    pixelData1 = nullptr;
     delete[] originalPixels;
     originalPixels = nullptr;
     delete[] mascaraPixels;
@@ -517,12 +517,15 @@ unsigned char* Opera_despla(unsigned char* pixelData, int size, int n, int etapa
 
     ofstream file("bits_p"+ to_string(etapa)+".txt");
 
-    for (int i = 0; i < size; i++) {
-        unsigned char Bitsper = pixelData[i] & ((1 << n) - 1);
-        file << static_cast<int>(Bitsper)<<" ";
-        result[i] = pixelData[i] >> n;
+    if (file.is_open()) {
+        file << n << endl;
+        for (int i = 0; i < size; i++) {
+            unsigned char Bitsper = pixelData[i] & ((1 << n) - 1);
+            file << static_cast<int>(Bitsper)<<" ";
+            result[i] = pixelData[i] >> n;
+        }
+        file.close();
     }
-    file.close();
     return result;
 }
 
@@ -532,22 +535,18 @@ void Enmascaramiento(unsigned char* pixelData, unsigned char* mascaraPixels,
     int maskSize = maskWidth * maskHeight * 3;
     srand(seed);
     int s = rand() % (Size - maskSize);  //rango
-    unsigned char* mascara = new unsigned char[maskSize];
+    int* mascara = new int[maskSize];
 
     for (int k = 0; k < maskSize; ++k) {
         int suma = pixelData[k+s] + mascaraPixels[k];
-        if (suma > 255){
-            suma = 255;}
-        mascara[k]=static_cast<unsigned char>(suma);
+        mascara[k]=int(suma);
 
     }
     // Guardar archivo de rastreo
     ofstream file("M" + to_string(etapa) + ".txt");
-
-
     file << s << "\n";
     for (int k = 0; k < maskSize; ++k) {
-        file << static_cast<int>(mascara[k]) << "\n";
+        file << (mascara[k]) << "\n";
     }
     file.close();
 
@@ -604,7 +603,7 @@ unsigned char* Opera_rota_inverse(unsigned char* pixelData1, int size, int n, in
     return result;
 }
 
-unsigned char* Opera_despla_inverse(unsigned char* pixelData1, int size, int n, int etapa) {
+unsigned char* Opera_despla_inverse(unsigned char* pixelData1, int size, int etapa) {
     unsigned char* result = new unsigned char[size];
 
     ifstream file("bits_p" + to_string(etapa) + ".txt");
@@ -613,6 +612,8 @@ unsigned char* Opera_despla_inverse(unsigned char* pixelData1, int size, int n, 
         return result;
     }
 
+    int n;
+    file >> n;
     for (int i = 0; i < size; i++) {
         int Bitsper;
         file >> Bitsper;
@@ -624,8 +625,7 @@ unsigned char* Opera_despla_inverse(unsigned char* pixelData1, int size, int n, 
 }
 
 bool verificarEnmascaramientoEtapa(unsigned char* pixelData, unsigned char* mascaraPixels,
-int Width, int Height, int maskWidth, int maskHeight, int etapa) {
-    int size = Width * Height * 3;
+int maskWidth, int maskHeight, int etapa) {
     int maskSize = maskWidth * maskHeight * 3;
 
     ifstream file("M" + to_string(etapa) + ".txt");
@@ -647,9 +647,6 @@ int Width, int Height, int maskWidth, int maskHeight, int etapa) {
         }
 
         int suma = pixelData[k + s] + mascaraPixels[k];
-        if (suma > 255) {
-            suma = 255;
-        }
 
         if (suma != valorGuardado) {
             cout << "Diferencia en píxel " << k << ": esperado " << valorGuardado << ", calculado " << suma << endl;
