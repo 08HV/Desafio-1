@@ -60,6 +60,9 @@ int maskWidth, int maskHeight, int etapa);
 unsigned char* Opera_xor_inverse(unsigned char* pixelData1, unsigned char* generateI_m, int size);
 unsigned char* Opera_rota_inverse(unsigned char* pixelData1, int size, int n, int etapa);
 unsigned char* Opera_despla_inverse(unsigned char* pixelData1, int size, int n, int etapa);
+bool verificarEnmascaramientoEtapa(unsigned char* pixelData, unsigned char* mascaraPixels,
+int Width, int Height, int maskWidth, int maskHeight, int etapa);
+
 
 
 int main()
@@ -125,6 +128,9 @@ int main()
         }
     //PROCEDIMIENTO DE ENMASCARAMIENTO
         Enmascaramiento(pixelData, mascaraPixels, width, height, maskWidth, maskHeight, 5000+i, i);
+
+     // VERIFICACION DEL ENMASCARAMIENTO
+        bool verificado = verificarEnmascaramientoEtapa(pixelData, mascaraPixels, width, height, maskWidth, maskHeight, i);
     }
 
     // Exporta la imagen modificada a un nuevo archivo BMP
@@ -617,6 +623,50 @@ unsigned char* Opera_despla_inverse(unsigned char* pixelData1, int size, int n, 
     return result;
 }
 
+bool verificarEnmascaramientoEtapa(unsigned char* pixelData, unsigned char* mascaraPixels,
+int Width, int Height, int maskWidth, int maskHeight, int etapa) {
+    int size = Width * Height * 3;
+    int maskSize = maskWidth * maskHeight * 3;
+
+    ifstream file("M" + to_string(etapa) + ".txt");
+    if (!file.is_open()) {
+        cout << "No se pudo abrir el archivo M" << etapa << ".txt" << endl;
+        return false;
+    }
+    int s;
+    file >> s;
+
+    bool exito = true;
+
+    for (int k = 0; k < maskSize; ++k) {
+        int valorGuardado;
+        if (!(file >> valorGuardado)) {
+            cout << "Error leyendo valor en posición " << k << endl;
+            exito = false;
+            break;
+        }
+
+        int suma = pixelData[k + s] + mascaraPixels[k];
+        if (suma > 255) {
+            suma = 255;
+        }
+
+        if (suma != valorGuardado) {
+            cout << "Diferencia en píxel " << k << ": esperado " << valorGuardado << ", calculado " << suma << endl;
+            exito = false;
+        }
+    }
+
+    file.close();
+
+    if (exito) {
+        cout << "Enmascaramiento verificado correctamente en etapa " << etapa << endl;
+    } else {
+        cout << "Error de enmascaramiento en etapa " << etapa << endl;
+    }
+
+    return exito;
+}
 
 
 
