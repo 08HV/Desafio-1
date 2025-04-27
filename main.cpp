@@ -90,6 +90,8 @@ int main()
     int numTransformaciones = 5;
     unsigned char *pixelData = originalPixels;
 
+    vector<string> tipoTransformacion;
+
     for (int i = 0; i < numTransformaciones; ++i) {
         int transform = QRandomGenerator::global()->bounded(3); // aleatoriamente un numero del 0-2
         if (transform == 0) {
@@ -109,6 +111,8 @@ int main()
             }
             pixelData=result;
             delete[] randomImage;
+            tipoTransformacion.push_back("XOR");
+
         }else if (transform ==1){
             // OPERACION ROTACION
             int n = 2 + (rand() % 5);
@@ -117,6 +121,7 @@ int main()
                 delete[] pixelData;
             }
             pixelData = result;
+            tipoTransformacion.push_back("ROTACION");
         } else if (transform ==2){
             //OPERACION DESPLAZAMIENTO
             int n = 1 + (rand() % 4);
@@ -125,6 +130,7 @@ int main()
                 delete[] pixelData;
             }
             pixelData = result;
+            tipoTransformacion.push_back("DESPLAZAMIENTO");
         }
     //PROCEDIMIENTO DE ENMASCARAMIENTO
         Enmascaramiento(pixelData, mascaraPixels, width, height, maskWidth, maskHeight, 5000+i, i);
@@ -132,6 +138,12 @@ int main()
      // VERIFICACION DEL ENMASCARAMIENTO
         bool verificado = verificarEnmascaramientoEtapa(pixelData, mascaraPixels, maskWidth, maskHeight, i);
     }
+
+    ofstream File1("T.txt");
+    for (int i = 0; i < tipoTransformacion.size(); ++i) {
+        File1 << i << " " << tipoTransformacion[i] << endl;
+    }
+    File1.close();
 
     // Exporta la imagen modificada a un nuevo archivo BMP
     bool exportI = exportImage(pixelData, width, height, archivoSalida);
@@ -174,9 +186,20 @@ int main()
     delete[] pixelI_D;
     pixelI_D = nullptr;
 
-    vector<string> transformaciones;
+    vector<string> tipoTransformacionEtapas(5, "");
+    ifstream archivoTransformaciones("T.txt");
+    if (archivoTransformaciones.is_open()) {
+        int etapa;
+        string tipo;
+        while (archivoTransformaciones >> etapa >> tipo) {
+            tipoTransformacionEtapas[etapa] = tipo;
+        }
+        archivoTransformaciones.close();
+    } else {
+        cerr << "No se pudo abrir T.txt" << endl;
+    }
 
-    // ciclo desde la última transformación a la primera
+        // ciclo desde la última transformación a la primera
     for (int etapa = 4; etapa >= 0; etapa--) {
         cout << "Deshaciendo etapa " << etapa << "..." << endl;
 
@@ -185,94 +208,52 @@ int main()
         cout << "- Desenmascaramiento realizado (archivo M" << etapa << ".txt)" << endl;
 
         // aplicar transformación inversa
-        bool invertido = false;
-
-        string archivoBits = "bits_p" + to_string(etapa) + ".txt";
-        ifstream testFile(archivoBits);
-        if (testFile.is_open()) {
+        string tipo = tipoTransformacionEtapas[etapa];
         // desplazamientos inversos
-        for (int n = 1; n <= 4 && !invertido; ++n) {
-            unsigned char* intento = Opera_despla_inverse(pixelData1, size, etapa);
-            int validos = 0;
-            for (int i = 0; i < size; ++i) {
-                if (intento[i] >= 10 && intento[i] <= 255) validos++;
-            }
-            if (validos > size * 0.80) {
-                cout << "- Desplazamiento inverso (n = " << n << ")" << endl;
-                transformaciones.push_back("Etapa " + to_string(etapa) + ": Desplazamiento inverso (n = " + to_string(n) + ")");
-                delete[] pixelData1;
-                pixelData1 = intento;
-                invertido = true;
-                break;
-            }
-            delete[] intento;
-        }} else{
-            cout << "no hubo transfromacion desplazamiento en esta etapa "<<etapa  << endl;
+        if (tipo == "DESPLAZAMIENTO") {
+            unsigned char* result = Opera_despla_inverse(pixelData1, size, etapa);
+            delete[] pixelData1;
+            pixelData1=result;
+            cout<< "- Desplazamiento inverso en etapa" << etapa << endl;
         }
 
         // rotaciones inversas
-        if (!invertido) {
+        else if (tipo == "ROTACION") {
+            int n;
             string archivoRot = "rota_N" + to_string(etapa) + ".txt";
             ifstream rotFile(archivoRot);
             if (rotFile.is_open()) {
-                int n;
                 rotFile >> n;
                 rotFile.close();
-                // rotaciones inversas
-                unsigned char* intento = Opera_rota_inverse(pixelData1, size, n, etapa);
-                int validos = 0;
-                for (int i = 0; i < size; ++i) {
-                    if (intento[i] >= 10 && intento[i] <= 255) validos++;
-                }
-                if (validos > size * 0.80) {
-                    cout << "Rotación inversa (n = " << n << ")" << endl;
-                    transformaciones.push_back("Etapa " + to_string(etapa) + ": Rotación inversa (n = " + to_string(n) + ")");
-                    delete[] pixelData1;
-                    pixelData1 = intento;
-                    invertido = true;
-                } else {
-                    delete[] intento;
-                }
+                 // rotaciones inversas
+                unsigned char* result = Opera_rota_inverse(pixelData1, size, n, etapa);
+                delete[] pixelData1;
+                pixelData1 = result;
+                cout << "- Rotación inversa (n = " << n << ")" << endl;
             } else {
                 cout << "No hubo archivo de rotación rota_N" << etapa << ".txt para esta etapa." << endl;
             }
         }
 
         //  XOR inversa
-        if (!invertido) {
+        else if (tipo == "XOR") {
+            int seed;
             string archivosem = "xor_etapa" + to_string(etapa) + ".txt";
             ifstream semilla(archivosem);
-            if (semilla.is_open()) {
-                int seed;
-                semilla >> seed;
-                semilla.close();
-            unsigned char* xorr= generateI_m(width, height, seed);
-            unsigned char* intento = Opera_xor_inverse(pixelData1, xorr, size);
-            int validos = 0;
-            for (int i = 0; i < size; ++i) {
-                if (intento[i] >= 10 && intento[i] <= 255) validos++;
-            }
-            if (validos > size * 0.75) {
-                cout << "- XOR inverso" << endl;
-                transformaciones.push_back("Etapa " + to_string(etapa) + ": XOR inverso");
-                delete[] pixelData1;
-                pixelData1 = intento;
-                invertido = true;
-            } else {
-                delete[] intento;
-            }
-            delete[] xorr;
-        }else {
-                cout << "No se encontró la semilla para etapa " << etapa << ". No se aplicó XOR inverso." << endl;
+                if(semilla.is_open()) {
+                    semilla >> seed;
+                    semilla.close();
+                    unsigned char* xorr= generateI_m(width, height, seed);
+                    unsigned char* result = Opera_xor_inverse(pixelData1, xorr, size);
+                    delete[] pixelData1;
+                    pixelData1 = result;
+                    delete[] xorr;
+                    cout <<  "- XOR inverso en etapa" << etapa << endl;
+                }else {
+                    cout << "No se encontró la semilla para etapa " << etapa << ". No se aplicó XOR inverso." << endl;
+                }
             }
         }
-
-
-        if (!invertido) {
-            cout << "No se pudo identificar la transformación en etapa " << etapa << endl;
-            transformaciones.push_back("Etapa " + to_string(etapa) + ": No identificada");
-        }
-    }
 
     // Exportar imagen recuperada
     bool exportada = exportImage(pixelData1, width, height, archivoSalida2 );
@@ -288,12 +269,6 @@ int main()
         cout << "Imagen reconstruida con éxito. Es igual a la original." << endl;
     } else {
         cout << "Imagen reconstruida con diferencias en " << errores << " bytes." << endl;
-    }
-
-    // Mostrar transformaciones detectadas
-    cout << "Transformaciones identificadas (de etapa 4 a 0):" << endl;
-    for (const auto& t : transformaciones) {
-        cout << t << endl;
     }
 
     // Limpieza de memoria
@@ -539,7 +514,7 @@ void Enmascaramiento(unsigned char* pixelData, unsigned char* mascaraPixels,
 
     for (int k = 0; k < maskSize; ++k) {
         int suma = pixelData[k+s] + mascaraPixels[k];
-        mascara[k]=int(suma);
+        mascara[k]= suma;
 
     }
     // Guardar archivo de rastreo
