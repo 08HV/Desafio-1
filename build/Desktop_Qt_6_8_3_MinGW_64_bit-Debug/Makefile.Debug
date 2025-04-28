@@ -272,7 +272,9 @@ debug/main.o: ../../main.cpp C:/Qt/6.8.3/mingw_64/include/QtCore/QCoreApplicatio
 		C:/Qt/6.8.3/mingw_64/include/QtGui/qregion.h \
 		C:/Qt/6.8.3/mingw_64/include/QtCore/qspan.h \
 		C:/Qt/6.8.3/mingw_64/include/QtCore/q20iterator.h \
-		C:/Qt/6.8.3/mingw_64/include/QtCore/qline.h
+		C:/Qt/6.8.3/mingw_64/include/QtCore/qline.h \
+		C:/Qt/6.8.3/mingw_64/include/QtCore/QRandomGenerator \
+		C:/Qt/6.8.3/mingw_64/include/QtCore/qrandom.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o debug\main.o ..\..\main.cpp
 
 ####### Install
