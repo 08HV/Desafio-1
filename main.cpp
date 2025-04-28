@@ -309,22 +309,6 @@ int main()
 
 
 unsigned char* loadPixels(QString input, int &width, int &height){
-/*
- * @brief Carga una imagen BMP desde un archivo y extrae los datos de píxeles en formato RGB.
- *
- * Esta función utiliza la clase QImage de Qt para abrir una imagen en formato BMP, convertirla al
- * formato RGB888 (24 bits: 8 bits por canal), y copiar sus datos de píxeles a un arreglo dinámico
- * de tipo unsigned char. El arreglo contendrá los valores de los canales Rojo, Verde y Azul (R, G, B)
- * de cada píxel de la imagen, sin rellenos (padding).
- *
- * @param input Ruta del archivo de imagen BMP a cargar (tipo QString).
- * @param width Parámetro de salida que contendrá el ancho de la imagen cargada (en píxeles).
- * @param height Parámetro de salida que contendrá la altura de la imagen cargada (en píxeles).
- * @return Puntero a un arreglo dinámico que contiene los datos de los píxeles en formato RGB.
- *         Devuelve nullptr si la imagen no pudo cargarse.
- *
- * @note Es responsabilidad del usuario liberar la memoria asignada al arreglo devuelto usando `delete[]`.
- */
 
     // Cargar la imagen BMP desde el archivo especificado (usando Qt)
     QImage imagen(input);
@@ -360,24 +344,7 @@ unsigned char* loadPixels(QString input, int &width, int &height){
 }
 
 bool exportImage(unsigned char* pixelData, int width,int height, QString archivoSalida){
-/*
- * @brief Exporta una imagen en formato BMP a partir de un arreglo de píxeles en formato RGB.
- *
- * Esta función crea una imagen de tipo QImage utilizando los datos contenidos en el arreglo dinámico
- * `pixelData`, que debe representar una imagen en formato RGB888 (3 bytes por píxel, sin padding).
- * A continuación, copia los datos línea por línea a la imagen de salida y guarda el archivo resultante
- * en formato BMP en la ruta especificada.
- *
- * @param pixelData Puntero a un arreglo de bytes que contiene los datos RGB de la imagen a exportar.
- *                  El tamaño debe ser igual a width * height * 3 bytes.
- * @param width Ancho de la imagen en píxeles.
- * @param height Alto de la imagen en píxeles.
- * @param archivoSalida Ruta y nombre del archivo de salida en el que se guardará la imagen BMP (QString).
- *
- * @return true si la imagen se guardó exitosamente; false si ocurrió un error durante el proceso.
- *
- * @note La función no libera la memoria del arreglo pixelData; esta responsabilidad recae en el usuario.
- */
+
 
     // Crear una nueva imagen de salida con el mismo tamaño que la original
     // usando el formato RGB888 (3 bytes por píxel, sin canal alfa)
@@ -405,24 +372,7 @@ bool exportImage(unsigned char* pixelData, int width,int height, QString archivo
 }
 
 unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixels){
-/*
- * @brief Carga la semilla y los resultados del enmascaramiento desde un archivo de texto.
- *
- * Esta función abre un archivo de texto que contiene una semilla en la primera línea y,
- * a continuación, una lista de valores RGB resultantes del proceso de enmascaramiento.
- * Primero cuenta cuántos tripletes de píxeles hay, luego reserva memoria dinámica
- * y finalmente carga los valores en un arreglo de enteros.
- *
- * @param nombreArchivo Ruta del archivo de texto que contiene la semilla y los valores RGB.
- * @param seed Variable de referencia donde se almacenará el valor entero de la semilla.
- * @param n_pixels Variable de referencia donde se almacenará la cantidad de píxeles leídos
- *                 (equivalente al número de líneas después de la semilla).
- *
- * @return Puntero a un arreglo dinámico de enteros que contiene los valores RGB
- *         en orden secuencial (R, G, B, R, G, B, ...). Devuelve nullptr si ocurre un error al abrir el archivo.
- *
- * @note Es responsabilidad del usuario liberar la memoria reservada con delete[].
- */
+
 
     // Abrir el archivo que contiene la semilla y los valores RGB
     ifstream archivo(nombreArchivo);
