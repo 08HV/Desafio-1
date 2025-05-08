@@ -38,6 +38,8 @@
 #include <cstdlib>
 #include <vector>
 #include <string>
+#include <QRandomGenerator>
+
 
 
 
@@ -49,12 +51,18 @@ bool exportImage(unsigned char* pixelData, int width,int height, QString archivo
 unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixels);
 unsigned char* generateI_m(int width, int height, int seed);
 unsigned char* Opera_xor(unsigned char* pixelData, unsigned char* generateI_m, int size);
-unsigned char* Opera_rota(unsigned char* pixelData, int size, int n);
-unsigned char* Opera_despla(unsigned char* pixelData, int size, int n);
+unsigned char* Opera_rota(unsigned char* pixelData, int size, int n, int etapa);
+unsigned char* Opera_despla(unsigned char* pixelData, int size, int n, int etapa);
 void Enmascaramiento(unsigned char* loadPixels, unsigned char* mascaraPixels,
 int Width, int Height,int maskWidth, int maskHeight,int seed, int etapa);
-unsigned char* Opera_xor_inverse(unsigned char* pixelData, unsigned char* generateI_m, int size);
-unsigned char* Opera_rota_inverse(unsigned char* pixelData, int size, int n);
+void DesEnmascaramiento(unsigned char* pixelData1, unsigned char* mascaraPixels,
+int maskWidth, int maskHeight, int etapa);
+unsigned char* Opera_xor_inverse(unsigned char* pixelData1, unsigned char* generateI_m, int size);
+unsigned char* Opera_rota_inverse(unsigned char* pixelData1, int size, int n, int etapa);
+unsigned char* Opera_despla_inverse(unsigned char* pixelData1, int size, int etapa);
+bool verificarEnmascaramientoEtapa(unsigned char* pixelData, unsigned char* mascaraPixels,
+int maskWidth, int maskHeight, int etapa);
+
 
 
 int main()
@@ -63,6 +71,7 @@ int main()
     QString archivoEntrada = "I_O.bmp";
     QString archivoMascara = "M.bmp";  //entrada Mascara
     QString archivoSalida = "I_D.bmp";
+    QString archivoSalida2 = "I_Oi.bmp";// Imagen original por inversa
 
     // Variables para almacenar las dimensiones de la imagen
     int height = 0;
@@ -81,37 +90,60 @@ int main()
     int numTransformaciones = 5;
     unsigned char *pixelData = originalPixels;
 
+    vector<string> tipoTransformacion;
+
     for (int i = 0; i < numTransformaciones; ++i) {
-        int transform = rand() % 3; // aleatoriamente un numero del 0-2
+        int transform = QRandomGenerator::global()->bounded(3); // aleatoriamente un numero del 0-2
         if (transform == 0) {
-            // OPERACION XOR
-            unsigned char* randomImage = generateI_m(width, height, 1234+i);
+            int seed = 1234 + i;
+            unsigned char* randomImage = generateI_m(width, height, seed);
+            ofstream file("xor_etapa" + to_string(i) + ".txt");
+            if (file.is_open()) {
+                file << seed;
+                file.close();
+            } else {
+                cerr << "No se guardo la semilla XOR para etapa " << i << endl;
+            }
+             // OPERACION XOR
             unsigned char* result= Opera_xor(pixelData, randomImage, size);
             if(pixelData != originalPixels){
                 delete[] pixelData;
             }
             pixelData=result;
             delete[] randomImage;
-        } else if (transform ==1){
+            tipoTransformacion.push_back("XOR");
+
+        }else if (transform ==1){
             // OPERACION ROTACION
             int n = 2 + (rand() % 5);
-            unsigned char* result = Opera_rota(pixelData, size, n);
+            unsigned char* result = Opera_rota(pixelData, size, n, i);
             if (pixelData != originalPixels){
                 delete[] pixelData;
             }
             pixelData = result;
+            tipoTransformacion.push_back("ROTACION");
         } else if (transform ==2){
             //OPERACION DESPLAZAMIENTO
             int n = 1 + (rand() % 4);
-            unsigned char* result = Opera_despla(pixelData, size, n);
+            unsigned char* result = Opera_despla(pixelData, size, n, i);
             if (pixelData != originalPixels){
                 delete[] pixelData;
             }
             pixelData = result;
+            tipoTransformacion.push_back("DESPLAZAMIENTO");
         }
     //PROCEDIMIENTO DE ENMASCARAMIENTO
         Enmascaramiento(pixelData, mascaraPixels, width, height, maskWidth, maskHeight, 5000+i, i);
+
+     // VERIFICACION DEL ENMASCARAMIENTO
+        bool verificado = verificarEnmascaramientoEtapa(pixelData, mascaraPixels, maskWidth, maskHeight, i);
     }
+
+    ofstream File1("T.txt");
+    for (int i = 0; i < tipoTransformacion.size(); ++i) {
+        File1 << i << " " << tipoTransformacion[i] << endl;
+    }
+    File1.close();
 
     // Exporta la imagen modificada a un nuevo archivo BMP
     bool exportI = exportImage(pixelData, width, height, archivoSalida);
@@ -122,10 +154,7 @@ int main()
     // Libera la memoria usada para los píxeles
     delete[] pixelData;
     pixelData = nullptr;
-    delete[] originalPixels;
-    originalPixels = nullptr;
-    delete[] mascaraPixels;
-    mascaraPixels = nullptr;
+
 
     // Variables para almacenar la semilla y el número de píxeles leídos del archivo de enmascaramiento
     int seed = 0;
@@ -148,28 +177,113 @@ int main()
         maskingData = nullptr;
     }
 
+ // proceso para volver a la imagen original.
 
-    return 0; // Fin del programa
+    // Carga la imagen BMP en memoria dinamica y obtiene ancho y alto
+    unsigned char *pixelI_D = loadPixels(archivoSalida, width, height);
+    unsigned char *pixelData1 = new unsigned char[size];
+    memcpy(pixelData1, pixelI_D, size);
+    delete[] pixelI_D;
+    pixelI_D = nullptr;
+
+    vector<string> tipoTransformacionEtapas(5, "");
+    ifstream archivoTransformaciones("T.txt");
+    if (archivoTransformaciones.is_open()) {
+        int etapa;
+        string tipo;
+        while (archivoTransformaciones >> etapa >> tipo) {
+            tipoTransformacionEtapas[etapa] = tipo;
+        }
+        archivoTransformaciones.close();
+    } else {
+        cerr << "No se pudo abrir T.txt" << endl;
+    }
+
+        // ciclo desde la última transformación a la primera
+    for (int etapa = 4; etapa >= 0; etapa--) {
+        cout << "Deshaciendo etapa " << etapa << "..." << endl;
+
+        // Desenmascaramiento por los archivos .txt
+        DesEnmascaramiento(pixelData1, mascaraPixels, maskWidth, maskHeight, etapa);
+        cout << "- Desenmascaramiento realizado (archivo M" << etapa << ".txt)" << endl;
+
+        // aplicar transformación inversa
+        string tipo = tipoTransformacionEtapas[etapa];
+        // desplazamientos inversos
+        if (tipo == "DESPLAZAMIENTO") {
+            unsigned char* result = Opera_despla_inverse(pixelData1, size, etapa);
+            delete[] pixelData1;
+            pixelData1=result;
+            cout<< "- Desplazamiento inverso en etapa" << etapa << endl;
+        }
+
+        // rotaciones inversas
+        else if (tipo == "ROTACION") {
+            int n;
+            string archivoRot = "rota_N" + to_string(etapa) + ".txt";
+            ifstream rotFile(archivoRot);
+            if (rotFile.is_open()) {
+                rotFile >> n;
+                rotFile.close();
+                 // rotaciones inversas
+                unsigned char* result = Opera_rota_inverse(pixelData1, size, n, etapa);
+                delete[] pixelData1;
+                pixelData1 = result;
+                cout << "- Rotación inversa (n = " << n << ")" << endl;
+            } else {
+                cout << "No hubo archivo de rotación rota_N" << etapa << ".txt para esta etapa." << endl;
+            }
+        }
+
+        //  XOR inversa
+        else if (tipo == "XOR") {
+            int seed;
+            string archivosem = "xor_etapa" + to_string(etapa) + ".txt";
+            ifstream semilla(archivosem);
+                if(semilla.is_open()) {
+                    semilla >> seed;
+                    semilla.close();
+                    unsigned char* xorr= generateI_m(width, height, seed);
+                    unsigned char* result = Opera_xor_inverse(pixelData1, xorr, size);
+                    delete[] pixelData1;
+                    pixelData1 = result;
+                    delete[] xorr;
+                    cout <<  "- XOR inverso en etapa" << etapa << endl;
+                }else {
+                    cout << "No se encontró la semilla para etapa " << etapa << ". No se aplicó XOR inverso." << endl;
+                }
+            }
+        }
+
+    // Exportar imagen recuperada
+    bool exportada = exportImage(pixelData1, width, height, archivoSalida2 );
+    cout << exportada << endl;
+
+    // Comparar con la original
+    int errores = 0;
+    for (int i = 0; i < size; ++i) {
+        if (pixelData1[i] != originalPixels[i]){
+            errores++;}
+    }
+    if (errores == 0) {
+        cout << "Imagen reconstruida con éxito. Es igual a la original." << endl;
+    } else {
+        cout << "Imagen reconstruida con diferencias en " << errores << " bytes." << endl;
+    }
+
+    // Limpieza de memoria
+    delete[] pixelData1;
+    pixelData1 = nullptr;
+    delete[] originalPixels;
+    originalPixels = nullptr;
+    delete[] mascaraPixels;
+    mascaraPixels = nullptr;
+
+    return 0;
 }
 
 
 unsigned char* loadPixels(QString input, int &width, int &height){
-/*
- * @brief Carga una imagen BMP desde un archivo y extrae los datos de píxeles en formato RGB.
- *
- * Esta función utiliza la clase QImage de Qt para abrir una imagen en formato BMP, convertirla al
- * formato RGB888 (24 bits: 8 bits por canal), y copiar sus datos de píxeles a un arreglo dinámico
- * de tipo unsigned char. El arreglo contendrá los valores de los canales Rojo, Verde y Azul (R, G, B)
- * de cada píxel de la imagen, sin rellenos (padding).
- *
- * @param input Ruta del archivo de imagen BMP a cargar (tipo QString).
- * @param width Parámetro de salida que contendrá el ancho de la imagen cargada (en píxeles).
- * @param height Parámetro de salida que contendrá la altura de la imagen cargada (en píxeles).
- * @return Puntero a un arreglo dinámico que contiene los datos de los píxeles en formato RGB.
- *         Devuelve nullptr si la imagen no pudo cargarse.
- *
- * @note Es responsabilidad del usuario liberar la memoria asignada al arreglo devuelto usando `delete[]`.
- */
 
     // Cargar la imagen BMP desde el archivo especificado (usando Qt)
     QImage imagen(input);
@@ -205,24 +319,7 @@ unsigned char* loadPixels(QString input, int &width, int &height){
 }
 
 bool exportImage(unsigned char* pixelData, int width,int height, QString archivoSalida){
-/*
- * @brief Exporta una imagen en formato BMP a partir de un arreglo de píxeles en formato RGB.
- *
- * Esta función crea una imagen de tipo QImage utilizando los datos contenidos en el arreglo dinámico
- * `pixelData`, que debe representar una imagen en formato RGB888 (3 bytes por píxel, sin padding).
- * A continuación, copia los datos línea por línea a la imagen de salida y guarda el archivo resultante
- * en formato BMP en la ruta especificada.
- *
- * @param pixelData Puntero a un arreglo de bytes que contiene los datos RGB de la imagen a exportar.
- *                  El tamaño debe ser igual a width * height * 3 bytes.
- * @param width Ancho de la imagen en píxeles.
- * @param height Alto de la imagen en píxeles.
- * @param archivoSalida Ruta y nombre del archivo de salida en el que se guardará la imagen BMP (QString).
- *
- * @return true si la imagen se guardó exitosamente; false si ocurrió un error durante el proceso.
- *
- * @note La función no libera la memoria del arreglo pixelData; esta responsabilidad recae en el usuario.
- */
+
 
     // Crear una nueva imagen de salida con el mismo tamaño que la original
     // usando el formato RGB888 (3 bytes por píxel, sin canal alfa)
@@ -250,24 +347,7 @@ bool exportImage(unsigned char* pixelData, int width,int height, QString archivo
 }
 
 unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixels){
-/*
- * @brief Carga la semilla y los resultados del enmascaramiento desde un archivo de texto.
- *
- * Esta función abre un archivo de texto que contiene una semilla en la primera línea y,
- * a continuación, una lista de valores RGB resultantes del proceso de enmascaramiento.
- * Primero cuenta cuántos tripletes de píxeles hay, luego reserva memoria dinámica
- * y finalmente carga los valores en un arreglo de enteros.
- *
- * @param nombreArchivo Ruta del archivo de texto que contiene la semilla y los valores RGB.
- * @param seed Variable de referencia donde se almacenará el valor entero de la semilla.
- * @param n_pixels Variable de referencia donde se almacenará la cantidad de píxeles leídos
- *                 (equivalente al número de líneas después de la semilla).
- *
- * @return Puntero a un arreglo dinámico de enteros que contiene los valores RGB
- *         en orden secuencial (R, G, B, R, G, B, ...). Devuelve nullptr si ocurre un error al abrir el archivo.
- *
- * @note Es responsabilidad del usuario liberar la memoria reservada con delete[].
- */
+
 
     // Abrir el archivo que contiene la semilla y los valores RGB
     ifstream archivo(nombreArchivo);
@@ -342,18 +422,34 @@ unsigned char* Opera_xor(unsigned char* pixelData, unsigned char* generateI_m, i
     return result;
 }
 
-unsigned char* Opera_rota(unsigned char* pixelData, int size, int n){
+unsigned char* Opera_rota(unsigned char* pixelData, int size, int n, int etapa){
     unsigned char* result = new unsigned char[size];
+    ofstream file("rota_N" + to_string(etapa) + ".txt");
+    if (file.is_open()) {
+        file << n << endl;
+        file.close();
+    } else {
+        cerr << "Error al abrir rota_N" << etapa << endl;
+    }
     for (int i = 0; i < size; i++) {
         result[i] = (pixelData[i] >> n) | (pixelData[i] << (8 - n)); // Rotación
     }
     return result;
 }
 
-unsigned char* Opera_despla(unsigned char* pixelData, int size, int n){
+unsigned char* Opera_despla(unsigned char* pixelData, int size, int n, int etapa){
     unsigned char* result = new unsigned char[size];
-    for (int i = 0; i < size; i++) {
-        result[i] = pixelData[i] >> n;
+
+    ofstream file("bits_p"+ to_string(etapa)+".txt");
+
+    if (file.is_open()) {
+        file << n << endl;
+        for (int i = 0; i < size; i++) {
+            unsigned char Bitsper = pixelData[i] & ((1 << n) - 1);
+            file << static_cast<int>(Bitsper)<<" ";
+            result[i] = pixelData[i] >> n;
+        }
+        file.close();
     }
     return result;
 }
@@ -364,42 +460,134 @@ void Enmascaramiento(unsigned char* pixelData, unsigned char* mascaraPixels,
     int maskSize = maskWidth * maskHeight * 3;
     srand(seed);
     int s = rand() % (Size - maskSize);  //rango
-    unsigned char* mascara = new unsigned char[maskSize];
+    int* mascara = new int[maskSize];
 
     for (int k = 0; k < maskSize; ++k) {
         int suma = pixelData[k+s] + mascaraPixels[k];
-        if (suma > 255){
-            suma = 255;}
-        mascara[k]=static_cast<unsigned char>(suma);
+        mascara[k]= suma;
 
     }
     // Guardar archivo de rastreo
     ofstream file("M" + to_string(etapa) + ".txt");
-
-
     file << s << "\n";
     for (int k = 0; k < maskSize; ++k) {
-        file << static_cast<int>(mascara[k]) << "\n";
+        file << (mascara[k]) << "\n";
     }
     file.close();
 
     delete[] mascara;
 }
+
+void DesEnmascaramiento(unsigned char* pixelData1, unsigned char* mascaraPixels,
+int maskWidth, int maskHeight, int etapa){
+
+    int maskSize = maskWidth * maskHeight * 3;
+
+    ifstream file("M" + to_string(etapa) + ".txt");
+    int s;
+    file >> s;
+
+    unsigned char* mascara = new unsigned char[maskSize];
+    for (int k = 0; k < maskSize; ++k) {
+        int valor;
+        file >> valor;
+        mascara[k] = static_cast<unsigned char>(valor);
+    }
+    file.close();
+
+    for (int k = 0; k < maskSize; ++k) {
+        int resta = mascara[k] - mascaraPixels[k];
+        if (resta < 0) resta = 0;
+        pixelData1[k + s] = static_cast<unsigned char>(resta);
+    }
+
+    delete[] mascara;
+}
+
 // Inversa de XOR
-unsigned char* Opera_xor_inverse(unsigned char* pixelData, unsigned char* generateI_m, int size) {
+unsigned char* Opera_xor_inverse(unsigned char* pixelData1, unsigned char* generateI_m, int size) {
     unsigned char* result = new unsigned char[size];
     for (int i = 0; i < size; i++) {
-        result[i] = pixelData[i] ^ generateI_m[i];
+        result[i] = pixelData1[i] ^ generateI_m[i];
     }
     return result;
 }
 // inversa de ROTA
-unsigned char* Opera_rota_inverse(unsigned char* pixelData, int size, int n) {
+unsigned char* Opera_rota_inverse(unsigned char* pixelData1, int size, int n, int etapa) {
     unsigned char* result = new unsigned char[size];
-    for (int i = 0; i < size; i++) {
-        result[i] = (pixelData[i] << n) | (pixelData[i] >> (8 - n)); // Rotación a la izquierda
+
+    ifstream file("rota_N" + to_string(etapa) + ".txt");
+    if(!file.is_open()){
+        cerr << "No se pudo abrir el archivo rota_N" << etapa << ".txt" << endl;
+        return result;
     }
+    for (int i = 0; i < size; i++) {
+        result[i] = (pixelData1[i] << n) | (pixelData1[i] >> (8 - n)); // Rotación a la izquierda
+    }
+    file.close();
     return result;
+}
+
+unsigned char* Opera_despla_inverse(unsigned char* pixelData1, int size, int etapa) {
+    unsigned char* result = new unsigned char[size];
+
+    ifstream file("bits_p" + to_string(etapa) + ".txt");
+    if(!file.is_open()){
+        cerr << "No se pudo abrir el archivo bits_p" << etapa << ".txt" << endl;
+        return result;
+    }
+
+    int n;
+    file >> n;
+    for (int i = 0; i < size; i++) {
+        int Bitsper;
+        file >> Bitsper;
+        result[i] = (pixelData1[i] >> n) | ((Bitsper & ((1 << n) - 1)) << (8-n));
+    }
+
+    file.close();
+    return result;
+}
+
+bool verificarEnmascaramientoEtapa(unsigned char* pixelData, unsigned char* mascaraPixels,
+int maskWidth, int maskHeight, int etapa) {
+    int maskSize = maskWidth * maskHeight * 3;
+
+    ifstream file("M" + to_string(etapa) + ".txt");
+    if (!file.is_open()) {
+        cout << "No se pudo abrir el archivo M" << etapa << ".txt" << endl;
+        return false;
+    }
+    int s;
+    file >> s;
+
+    bool exito = true;
+
+    for (int k = 0; k < maskSize; ++k) {
+        int valorGuardado;
+        if (!(file >> valorGuardado)) {
+            cout << "Error leyendo valor en posición " << k << endl;
+            exito = false;
+            break;
+        }
+
+        int suma = pixelData[k + s] + mascaraPixels[k];
+
+        if (suma != valorGuardado) {
+            cout << "Diferencia en píxel " << k << ": esperado " << valorGuardado << ", calculado " << suma << endl;
+            exito = false;
+        }
+    }
+
+    file.close();
+
+    if (exito) {
+        cout << "Enmascaramiento verificado correctamente en etapa " << etapa << endl;
+    } else {
+        cout << "Error de enmascaramiento en etapa " << etapa << endl;
+    }
+
+    return exito;
 }
 
 
